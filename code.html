@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AIverse — AI Tools Directory</title>
+<meta name="description" content="AIverse is a fast, searchable directory for discovering the best AI tools." />
+<meta name="theme-color" content="#0b0b14" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-theme="dark">
+
+<div class="ambient">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+</div>
+
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="brand">
+        <div class="brand-icon">✨</div>
+        <span class="brand-name">AIverse</span>
+      </div>
+      <button class="sidebar-close" id="sidebarClose">✕</button>
+    </div>
+    <nav class="nav" id="navList"></nav>
+    <div class="upgrade-card">
+      <div class="crown">👑</div>
+      <p class="title">Upgrade to Pro</p>
+      <p class="sub">Unlock unlimited comparisons, saved collections &amp; early access.</p>
+      <button class="upgrade-btn" id="upgradeSidebarBtn">Upgrade Now</button>
+    </div>
+  </aside>
+
+  <div class="overlay" id="sidebarOverlay"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="searchInput" placeholder="Search AI Tools..." autocomplete="off" />
+          <span class="kbd">⌘K</span>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+        <div class="top-actions">
+          <div style="position:relative;">
+            <button class="icon-btn" id="notifBtn">🔔<span class="dot"></span></button>
+            <div class="dropdown" id="notifDropdown">
+              <div class="dropdown-header">Notifications</div>
+              <div class="notif-item"><span class="emoji">✨</span><div><div class="txt">ElevenLabs just added a new voice model.</div><div class="time">2h ago</div></div></div>
+              <div class="notif-item"><span class="emoji">🔥</span><div><div class="txt">Claude is trending in Chatbots today.</div><div class="time">5h ago</div></div></div>
+              <div class="notif-item"><span class="emoji">🏆</span><div><div class="txt">Cursor was picked as Editor's Choice.</div><div class="time">1d ago</div></div></div>
+            </div>
+          </div>
+          <button class="icon-btn" id="themeBtn">🌙</button>
+          <div style="position:relative;">
+            <button class="avatar-btn" id="profileBtn">SG</button>
+            <div class="dropdown" id="profileDropdown">
+              <div class="dropdown-header">Sravani.G<div class="dropdown-sub">gorigesravani288@gmail.com</div></div>
+              <button class="dropdown-action" data-nav="Favorites">⭐ My Favorites</button>
+              <button class="dropdown-action" id="profileUpgradeBtn">👑 Upgrade to Pro</button>
+              <button class="dropdown-action" id="profileSettingsBtn">⚙️ Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="sec-Dashboard" class="hero">
+        <div>
+          <span class="eyebrow">✨ Powered by community + AI ranking</span>
+          <h1 class="hero-title">Discover the Best AI Tools for Every Task</h1>
+          <p class="hero-sub">Explore AI tools for writing, coding, designing, marketing, productivity, education, business, and more.</p>
+          <div class="hero-actions">
+            <button class="btn-primary" data-nav="AI Tools">Explore Tools →</button>
+            <button class="btn-secondary" data-nav="Compare Tools">Compare AI</button>
+          </div>
+        </div>
+        <div class="glass hero-illustration">
+          <div class="glow"></div>
+          <div class="window-dots">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <span class="window-url">ai-workspace.app</span>
+          </div>
+          <div class="fake-row">
+            <div class="ic" style="background:linear-gradient(135deg,#818cf8,#a78bfa);">⚡</div>
+            <div class="lines"><div class="fake-line"></div><div class="fake-line short"></div></div>
+            <div class="chip"></div>
+          </div>
+          <div class="fake-row">
+            <div class="ic" style="background:linear-gradient(135deg,#22d3ee,#38bdf8);">⚡</div>
+            <div class="lines"><div class="fake-line"></div><div class="fake-line short"></div></div>
+            <div class="chip"></div>
+          </div>
+          <div class="fake-row">
+            <div class="ic" style="background:linear-gradient(135deg,#34d399,#2dd4bf);">⚡</div>
+            <div class="lines"><div class="fake-line"></div><div class="fake-line short"></div></div>
+            <div class="chip"></div>
+          </div>
+          <div class="bars-row">
+            <div class="bar-box"><div class="bar-fill" style="background:linear-gradient(0deg,#6366f1,#a5b4fc); height:65%;"></div></div>
+            <div class="bar-box"><div class="bar-fill" style="background:linear-gradient(0deg,#d946ef,#f0abfc); height:90%;"></div></div>
+            <div class="bar-box"><div class="bar-fill" style="background:linear-gradient(0deg,#06b6d4,#67e8f9); height:40%;"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section><div class="stats-grid" id="statsGrid"></div></section>
+
+      <section id="sec-Categories">
+        <div class="section-head">
+          <h2 class="section-title">Browse by Category</h2>
+          <button class="link-btn hidden" id="clearCatBtn">Clear filter ✕</button>
+        </div>
+        <div class="cat-grid" id="catGrid"></div>
+      </section>
+
+      <section>
+        <h2 class="section-title" style="margin-bottom:20px;">Curated Collections</h2>
+        <div class="collections-grid" id="collectionsGrid"></div>
+      </section>
+
+      <section>
+        <h2 class="section-title" style="margin-bottom:20px;">Category Popularity</h2>
+        <div class="glass chart-card" id="chartCard"></div>
+      </section>
+
+      <section id="sec-AITools">
+        <div class="section-head">
+          <h2 class="section-title" id="toolsSectionTitle">Featured AI Tools</h2>
+          <div class="chip-row" id="filterChips"></div>
+        </div>
+        <div id="toolsGrid"></div>
+      </section>
+
+      <section id="sec-Trending">
+        <div class="section-head" style="margin-bottom:12px;"><h2 class="section-title">🔥 Trending Today</h2></div>
+        <div class="trending-scroll" id="trendingScroll"></div>
+      </section>
+
+      <section id="sec-CompareTools">
+        <h2 class="section-title" style="margin-bottom:20px;">Compare Tools</h2>
+        <div class="glass table-wrap">
+          <table>
+            <thead><tr><th>Tool</th><th>Best For</th><th>Pricing</th><th>Rating</th><th>Free Plan</th><th>Platform</th><th>Website</th></tr></thead>
+            <tbody id="compareBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="brand"><div class="brand-icon" style="height:32px;width:32px;">✨</div><span class="brand-name" style="font-size:15px;">AIverse</span></div>
+          <p>A curated directory of AI tools — discover, compare, and pick the right one for your workflow.</p>
+          <div class="footer-socials">
+            <a class="social-btn" href="https://twitter.com" target="_blank" rel="noopener noreferrer">🐦</a>
+            <a class="social-btn" href="https://github.com" target="_blank" rel="noopener noreferrer">🐙</a>
+          </div>
+        </div>
+        <div>
+          <p class="footer-col-title">Company</p>
+          <ul class="footer-link-list">
+            <li><button class="footer-link" data-nav="Dashboard">About</button></li>
+            <li><a class="footer-link" href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer">Careers</a></li>
+            <li><a class="footer-link" href="mailto:hello@aiverse.app">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer-col-title">Explore</p>
+          <ul class="footer-link-list">
+            <li><button class="footer-link" data-nav="Categories">Categories</button></li>
+            <li><button class="footer-link" data-nav="Trending">Trending</button></li>
+            <li><button class="footer-link" data-nav="Dashboard">Collections</button></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer-col-title">Legal</p>
+          <ul class="footer-link-list">
+            <li><a class="footer-link" href="https://www.termsfeed.com/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy</a></li>
+            <li><a class="footer-link" href="https://www.termsfeed.com/terms-of-service" target="_blank" rel="noopener noreferrer">Terms</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer-col-title">Stay updated</p>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">New tools, every week.</p>
+          <div id="newsletterWrap">
+            <div class="newsletter-row">
+              <input class="newsletter-input" id="newsletterEmail" placeholder="you@email.com" />
+              <button class="newsletter-btn" id="newsletterBtn">Join</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">© 2026 AIverse. All rights reserved.</div>
+    </footer>
+  </div>
+</div>
+
+<div class="bottom-nav" id="bottomNav"></div>
+
+<div class="modal-backdrop drawer" id="filterDrawerBackdrop">
+  <div class="drawer-box">
+    <div class="drawer-header">
+      <h3>Advanced Filters</h3>
+      <button class="modal-close" id="closeDrawerBtn">✕</button>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Category</label>
+      <select class="field-select" id="drawerCategorySelect"></select>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Pricing</label>
+      <div class="chip-row" id="drawerPricingChips"></div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Platform</label>
+      <div class="chip-row"><button class="chip">Web</button><button class="chip">Desktop</button><button class="chip">Mobile</button></div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Minimum Rating</label>
+      <input type="range" min="1" max="5" step="0.1" value="1" style="width:100%;accent-color:var(--indigo);" id="minRatingRange">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Sort By</label>
+      <select class="field-select" id="drawerSortSelect">
+        <option value="popularity">Popularity</option>
+        <option value="newest">Recently Added</option>
+        <option value="rating">Top Rated</option>
+      </select>
+    </div>
+    <div class="field-group checkbox-row">
+      <span style="color:var(--text);font-weight:500;">Open Source only</span>
+      <input type="checkbox" style="accent-color:var(--indigo);width:16px;height:16px;">
+    </div>
+    <button class="apply-btn" id="applyFiltersBtn">Apply Filters</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="toolModalBackdrop"><div class="modal-box" id="toolModalBox"></div></div>
+
+<div class="modal-backdrop" id="upgradeModalBackdrop">
+  <div class="modal-box upgrade-modal">
+    <button class="modal-close" id="closeUpgradeBtn" style="position:absolute;top:16px;right:16px;">✕</button>
+    <div class="upgrade-icon">👑</div>
+    <h3 style="font-size:18px;font-weight:700;">Upgrade to AIverse Pro</h3>
+    <p style="font-size:14px;color:var(--text-dim);margin-top:6px;">Unlock unlimited tool comparisons, saved collections, and early access to new launches.</p>
+    <ul class="upgrade-feats">
+      <li>✅ Unlimited comparisons</li>
+      <li>✅ Private collections</li>
+      <li>✅ Priority new tool alerts</li>
+      <li>✅ Ad-free browsing</li>
+    </ul>
+    <button class="upgrade-cta" id="upgradeContinueBtn">Continue — $9/month</button>
+  </div>
+</div>
+
+
+<script src="js/data.js"></script>
+<script src="js/state.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
