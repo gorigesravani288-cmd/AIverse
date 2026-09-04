@@ -29,10 +29,11 @@
 
 ### 🎯 Key Highlights
 
-- 🧰 **180+ AI Tools** across 24+ categories
+- 🧰 **129 AI Tools** across 24 categories
 - 📚 **Community Collections** curated by users
-- 🔗 **AI Workflows** with step-by-step guides
+- 🔗 **8 Pre-built AI Workflows** with step-by-step guides
 - 🔐 **Google Authentication** via Supabase
+- 🛠️ **Community Tool Submissions** with admin review queue
 - 💸 **100% Free** and open-source
 
 ---
@@ -43,10 +44,11 @@
 
 | Feature | Description |
 |---|---|
-| **AI Tools Directory** | Browse 180+ AI tools across 24+ categories |
+| **AI Tools Directory** | Browse 129 AI tools across 24 categories |
 | **Smart Search** | Search with autocomplete and a `⌘K` shortcut |
 | **Category Filtering** | Filter by category, pricing, and platform |
 | **Favorites** | Save tools with persistent local storage |
+| **Recently Viewed** | Automatically tracks the last tools you opened |
 | **Google Login** | Secure authentication via Supabase |
 | **Trust Stats** | Real-time tool and category counts |
 
@@ -57,15 +59,19 @@
 - Fully responsive layout
 - Category quick-filter chips
 - Dynamic hero mockup with animations
+- Toast notifications for quick confirmations
+- Scroll-reveal and micro-interaction polish throughout
 
 ### 🔧 Advanced Features
 
 - Pre-built AI workflows
 - Community collections
-- Side-by-side tool comparison
+- Side-by-side tool comparison (with remove-from-comparison)
 - Tool rating system
 - Trending dashboard
 - Full user settings panel
+- **Community tool submissions** with a per-user pending-submission limit
+- **Admin review queue** — approve, reject, or inline-edit submitted tools, filterable by status
 
 ---
 
@@ -79,7 +85,7 @@
 - PWA support — Offline capabilities
 
 **Backend & Services**
-- Supabase — Authentication (Google OAuth) & database
+- Supabase — Authentication (Google OAuth), database, and Postgres RPC functions
 - Google Cloud Console — OAuth client registration for Google Sign-In
 - LocalStorage — User preferences and favorites
 
@@ -134,9 +140,56 @@ aiverse/
    const supabaseKey = 'your-publishable-key-here';
    ```
 
-2. **Set up Google OAuth** — see the dedicated [Google OAuth Setup](#-google-oauth-setup) section below.
+2. **Set up the `submitted_tools` table and RPC function** in the Supabase SQL editor — required for the Submit Tool feature and its per-user pending-submission limit:
 
-3. **Deploy to Vercel:**
+   ```sql
+   create table if not exists submitted_tools (
+     id uuid primary key default gen_random_uuid(),
+     tool_name text not null,
+     website text,
+     description text,
+     submitted_by_email text,
+     status text not null default 'pending',
+     created_at timestamptz not null default now()
+   );
+
+   alter table submitted_tools enable row level security;
+
+   create policy "anyone can insert submissions" on submitted_tools
+     for insert to anon, authenticated with check (true);
+
+   create policy "admin can read submissions" on submitted_tools
+     for select to authenticated using (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
+
+   create policy "admin can update submissions" on submitted_tools
+     for update to authenticated using (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
+
+   create policy "admin can delete submissions" on submitted_tools
+     for delete to authenticated using (auth.jwt() ->> 'email' = 'your-admin-email@example.com');
+
+   create or replace function count_pending_submissions(user_email text)
+   returns integer
+   language sql
+   security definer
+   set search_path = public
+   as $$
+     select count(*)::int
+     from submitted_tools
+     where submitted_by_email = user_email
+       and status = 'pending';
+   $$;
+
+   grant execute on function count_pending_submissions(text) to anon, authenticated;
+   ```
+
+   Then set your admin email in `index.html`:
+   ```javascript
+   const ADMIN_EMAIL = 'your-admin-email@example.com';
+   ```
+
+3. **Set up Google OAuth** — see the dedicated [Google OAuth Setup](#-google-oauth-setup) section below.
+
+4. **Deploy to Vercel:**
    - Connect your GitHub repository
    - Vercel will auto-deploy
 
@@ -186,28 +239,33 @@ Enabling "Sign in with Google" requires registering an OAuth client in **Google 
 
 ## 🎯 Pre-built Workflows
 
-| Workflow | Tools Used |
-|---|---|
-| **YouTube Video Creation** | ChatGPT → ElevenLabs → Runway → CapCut AI → Canva AI |
-| **Build a Website** | Cursor → Midjourney → Jasper → GitHub Copilot → Replit AI |
-| **Write Content** | Perplexity → Writesonic → Grammarly → Surfer SEO → Leonardo AI |
-| **Study with AI** | Elicit → Notion AI → Khanmigo → Quizlet Q-Chat → Google Gemini |
-| **Generate Images** | Midjourney → Krea AI → Magnific AI → Photoroom → Ideogram |
+| Workflow | Category | Tools Used |
+|---|---|---|
+| **Study Smarter** | Education | Perplexity → ChatGPT → Anki AI → Quizlet AI → Notion AI |
+| **Build a Website** | Coding | ChatGPT → Midjourney → Cursor → Replit AI → Surfer SEO |
+| **Create Videos** | Video | ChatGPT → Midjourney → ElevenLabs → CapCut AI → Buffer AI |
+| **Design Graphics** | Design | ChatGPT → Midjourney → Adobe Firefly → Canva AI → Looka |
+| **Grow a Business** | Marketing | Perplexity → Jasper → Buffer AI → Surfer SEO → HubSpot AI |
+| **Analyze Data** | Productivity | ChatGPT → Claude → Tableau AI → Beautiful.ai → Tome |
+| **Write Content** | Writing | Perplexity → ChatGPT → Jasper → Grammarly AI → WordPress AI |
+| **Launch a Startup** | Business | ChatGPT → Perplexity → Cursor → Jasper → Zapier AI |
 
 ---
 
 ## 📊 Tool Categories
 
-The platform includes 24+ categories:
+The platform includes 24 categories:
 
 | | | | |
 |---|---|---|---|
-| Writing | Coding | Image Generation | Video Editing |
-| Marketing | Business | Education | Research |
-| Chatbots | Automation | SEO | Email |
-| Social Media | Voice AI | Audio | Finance |
-| Legal | Healthcare | Gaming | E-commerce |
-| Productivity | Cybersecurity | Data Analytics | Music Generation |
+| Chatbots | Search | AI Search & Research | Image Generation |
+| Coding | Design | Audio & Voice | Music Generation |
+| Writing | Presentation | Presentations¹ | Video Generation |
+| Social Media | SEO | Education | Productivity |
+| Marketing | Automation | Data Analytics | AI Agents |
+| Meetings & Transcription | Documents & Knowledge | 3D & Spatial AI | Translation |
+
+¹ *`Presentation` and `Presentations` currently render as two separate category cards due to a naming mismatch — rename one to merge them if that's not intended. Same applies to `Search` vs. `AI Search & Research`.*
 
 ---
 
@@ -221,6 +279,8 @@ Contributions are welcome! Here's how to get started:
 4. Commit: `git commit -m 'Add AmazingFeature'`
 5. Push: `git push origin feature/AmazingFeature`
 6. Open a Pull Request
+
+You can also contribute tools directly through the app — click **+ Submit Tool**, and it'll go to the admin review queue.
 
 ---
 
