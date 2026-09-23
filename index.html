@@ -33,7 +33,7 @@
             supabaseAvailable = false;
         }
 
-               window.aiverseIsLoggedIn = false;
+        window.aiverseIsLoggedIn = false;
         window.aiverseUser = null;
 
         // ===== ADDON: toast notifications (replaces alert() for quick confirmations) =====
@@ -50,9 +50,8 @@
         window.showToast = showToast;
 
         // ===== ADMIN CONFIG =====
-        // Only this email is treated as admin. Change this to your real login email.
         const ADMIN_EMAIL = 'gorigesravani288@gmail.com';
-        const MAX_PENDING_SUBMISSIONS = 3; // how many "pending" tool suggestions one email can have at once
+        const MAX_PENDING_SUBMISSIONS = 3;
         function isCurrentUserAdmin() {
             return !!(window.aiverseUser && window.aiverseUser.email &&
                 window.aiverseUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
@@ -370,7 +369,7 @@
             display: flex;
             min-height: 100vh;
         }
-                .glass {
+        .glass {
             position: relative;
             border-radius: var(--r-lg);
             border: 1px solid var(--border);
@@ -2526,7 +2525,7 @@
                 grid-template-columns: 1fr 1fr 1fr;
             }
         }
-               .compare-card {
+        .compare-card {
             position: relative;
             padding: 20px;
             background: var(--panel);
@@ -3784,7 +3783,7 @@
             font-weight: 500;
         }
 
-                @media (prefers-reduced-motion: reduce) {
+        @media (prefers-reduced-motion: reduce) {
             .al-grid-lines,
             .al-ping,
             .al-ping-delay,
@@ -4090,6 +4089,7 @@
                         <div class="suggestions" id="suggestions"></div>
                     </div>
                     <div class="category-quick-chips" id="categoryQuickChips"></div>
+                    <div class="category-quick-chips" id="taskQuickChips"></div>
                     <div class="top-actions">
                         <div style="position:relative;">
                             <button class="icon-btn" id="notifBtn">🔔<span class="dot"></span></button>
@@ -4108,7 +4108,7 @@
                             <button class="avatar-btn" id="profileBtn">U</button>
                             <div class="dropdown" id="profileDropdown">
                                 <div class="dropdown-header" id="profileHeader">User<div class="dropdown-sub" id="profileEmail">email@example.com</div></div>
-                                                                <button class="dropdown-action" data-nav="Favorites">⭐ My Favorites</button>
+                                <button class="dropdown-action" data-nav="Favorites">⭐ My Favorites</button>
                                 <button class="dropdown-action" id="profileDashboardBtn">📊 My Dashboard</button>
                                 <button class="dropdown-action" id="reviewSubmissionsBtn" style="display:none; color:var(--amber);">🛡️ Review Tool Submissions</button>
                                 <button class="dropdown-action" id="profileSettingsBtn">⚙️ Settings</button>
@@ -4212,6 +4212,11 @@
 
                 <section><h2 class="section-title" style="margin-bottom:20px;">Category Popularity</h2><div class="glass chart-card" id="chartCard"></div></section>
 
+                <section id="sec-RecentlyViewed" style="display:none;">
+                    <div class="section-head"><h2 class="section-title">🕓 Recently Viewed</h2></div>
+                    <div class="trending-scroll" id="recentlyViewedScroll"></div>
+                </section>
+
                 <section id="sec-Recommendations">
                     <div class="section-head"><h2 class="section-title">🤖 Recommended For You</h2></div>
                     <div class="recommend-scroll" id="recommendScroll"></div>
@@ -4301,7 +4306,7 @@
         </div>
     </div>
 
-            <div class="bottom-nav" id="bottomNav"></div>
+    <div class="bottom-nav" id="bottomNav"></div>
     <div id="toastStack"></div>
     <button id="backToTopBtn" aria-label="Back to top">↑</button>
     <div class="modal-backdrop drawer" id="filterDrawerBackdrop">
@@ -5477,7 +5482,7 @@
             { label: "Favorites", ico: "⭐" },
         ];
 
-                // ===== ADDON LOCATION: category icon/color lookup — add entries here
+        // ===== ADDON LOCATION: category icon/color lookup — add entries here
         // as you add new tool categories. Anything missing falls back to a
         // sensible default instead of ever showing "0 tools".
         const CATEGORY_STYLE = {
@@ -5505,6 +5510,7 @@
         const CATEGORIES = Array.from(new Set(TOOLS.map(t => t.category)))
             .sort()
             .map(name => ({ name, ...(CATEGORY_STYLE[name] || DEFAULT_CATEGORY_STYLE) }));
+
         // =========================================
         // STATE MANAGEMENT
         // =========================================
@@ -5521,6 +5527,8 @@
             sortBy: "popularity",
             bookmarked: new Set(Array.isArray(persistedState.bookmarked) ? persistedState.bookmarked : ["Claude", "Cursor"]),
             reviews: persistedState.reviews && typeof persistedState.reviews === "object" ? persistedState.reviews : {},
+            writtenReviews: persistedState.writtenReviews && typeof persistedState.writtenReviews === "object" ? persistedState.writtenReviews : {},
+            recentlyViewed: Array.isArray(persistedState.recentlyViewed) ? persistedState.recentlyViewed : [],
             selectedTool: null,
             collectionMatcher: null,
             wfFilter: "all",
@@ -5532,7 +5540,20 @@
                 theme: state.theme,
                 bookmarked: [...state.bookmarked],
                 reviews: state.reviews,
+                writtenReviews: state.writtenReviews,
+                recentlyViewed: state.recentlyViewed,
             }));
+        }
+
+        function addWrittenReview(toolName, stars, text) {
+            if (!state.writtenReviews[toolName]) state.writtenReviews[toolName] = [];
+            state.writtenReviews[toolName].unshift({
+                stars,
+                text: text.trim(),
+                author: (window.aiverseUser && (window.aiverseUser.user_metadata?.full_name || window.aiverseUser.email)) || "Anonymous",
+                date: new Date().toISOString()
+            });
+            persistState();
         }
 
         // =========================================
@@ -5838,6 +5859,23 @@
                             <div class="trend-top"><div class="trend-logo">${t.logo}</div><div><p style="font-size:14px;font-weight:600;">${t.name}</p><span class="trend-tag ${t.tag === 'New' ? 'new' : 'trending'}">${t.tag}</span></div></div>
                             <p class="trend-desc">${t.desc}</p>
                             <div class="trend-footer">${starsHtml(t.rating)}<span style="color:#6ee7b7;font-size:13px;">📈</span></div>
+                        </div>
+                    `).join("");
+        }
+
+        // =========================================
+        // RECENTLY VIEWED (PATCH 3)
+        // =========================================
+        function renderRecentlyViewed() {
+            const section = document.getElementById("sec-RecentlyViewed");
+            const container = document.getElementById("recentlyViewedScroll");
+            if (!container || !section) return;
+            if (state.recentlyViewed.length === 0) { section.style.display = "none"; return; }
+            section.style.display = "block";
+            const items = state.recentlyViewed.map(n => TOOLS.find(t => t.name === n)).filter(Boolean);
+            container.innerHTML = items.map(t => `
+                        <div class="glass hoverable trend-card" data-tool="${t.name}" style="min-width:180px;">
+                            <div class="trend-top"><div class="trend-logo">${t.logo}</div><div><p style="font-size:14px;font-weight:600;">${t.name}</p><span style="font-size:11px;color:var(--text-dimmer);">${t.category}</span></div></div>
                         </div>
                     `).join("");
         }
@@ -6250,9 +6288,6 @@
         }
 
         // =========================================
-        // SUBMIT TOOL (Supabase)
-        // =========================================
-        // =========================================
         // SUBMIT TOOL — user suggestion flow
         // =========================================
         function buildAdminMailto(name, website, desc, submitterEmail) {
@@ -6289,9 +6324,6 @@
             }
         }
 
-        // Counts this email's not-yet-reviewed submissions via a SECURITY DEFINER
-        // RPC (see count_pending_submissions in Supabase) so a non-admin caller
-        // can check their own count without being able to read anyone else's rows.
         async function countPendingSubmissionsForEmail(submitterEmail) {
             if (!supabaseAvailable || !supabaseClient || !submitterEmail) return 0;
             try {
@@ -6357,10 +6389,8 @@
 
             btn.textContent = 'Sending…';
 
-            // Open the admin's email client with a pre-filled suggestion (user gesture, do this first)
             window.location.href = buildAdminMailto(name, website, desc, submitterEmail);
 
-            // Also log it to Supabase so nothing is lost even if the email step is skipped/blocked
             await insertSubmissionToSupabase(name, website, desc, submitterEmail);
 
             document.getElementById('stSuccessName').textContent = name;
@@ -6591,7 +6621,7 @@
                         `<p style="color:var(--text-dim); text-align:center; padding:40px;">Select at least one tool to compare.</p>`;
                     return;
                 }
-                                const slots = [s1, s2, s3];
+                const slots = [s1, s2, s3];
                 grid.innerHTML = slots.map((sel, idx) => {
                     const t = TOOLS.find(x => x.name === sel.value);
                     if (!t) return '';
@@ -6623,6 +6653,22 @@
             container.innerHTML = quickCategories.map(cat =>
                     `<button class="category-quick-chip" data-quick-cat="${cat}">${cat}</button>`
                 ).join('');
+        }
+
+        // =========================================
+        // TASK QUICK CHIPS (PATCH 5)
+        // =========================================
+        const QUICK_TASKS = [
+            { label: "✍️ Write a blog post", q: "writing" },
+            { label: "🎬 Make a video", q: "video" },
+            { label: "🎨 Design a logo", q: "design" },
+            { label: "💻 Build an app", q: "coding" },
+            { label: "📊 Analyze data", q: "data" }
+        ];
+        function renderTaskQuickChips() {
+            const container = document.getElementById("taskQuickChips");
+            if (!container) return;
+            container.innerHTML = QUICK_TASKS.map(t => `<button class="category-quick-chip" data-quick-task="${t.q}">${t.label}</button>`).join("");
         }
 
         function updateTrustStats() {
@@ -6664,8 +6710,34 @@
                                 <div><p class="modal-section-title" style="color:#6ee7b7;">Pros</p><ul class="pc-list"><li>✅ Fast, reliable output quality</li><li>✅ Intuitive, well-designed interface</li><li>✅ Strong integration ecosystem</li></ul></div>
                                 <div><p class="modal-section-title" style="color:var(--rose);">Cons</p><ul class="pc-list"><li>✕ Paid tiers can get pricey at scale</li><li>✕ Occasional rate limits at peak times</li></ul></div>
                             </div>
-                            <div><p class="modal-section-title">Rate this tool</p><div class="review-row"><div class="rate-stars" id="rateStars">${[1, 2, 3, 4, 5].map(n => `<span data-star="${n}">★</span>`).join("")}</div><span class="review-count">${avgDisplay} avg · ${totalReviews} reviews</span></div></div>
-                                                       <div class="modal-actions"><button class="btn-primary" style="flex:1;justify-content:center;" data-visit="${t.name}">Visit Website ↗</button><button class="btn-secondary" data-copy-link="${t.name}" style="padding:11px 16px;" aria-label="Copy link">🔗</button><button class="btn-secondary" data-bookmark="${t.name}" style="padding:11px 16px;">${state.bookmarked.has(t.name) ? "★" : "☆"}</button></div>
+                            ${alts.length > 0 ? `
+                            <div>
+                                <p class="modal-section-title">Alternatives to ${t.name}</p>
+                                <div class="alt-chips">
+                                    ${alts.map(a => `<button class="alt-chip" data-tool="${a.name}"><span>${a.logo}</span> ${a.name}</button>`).join("")}
+                                </div>
+                            </div>` : ""}
+                            <div>
+                                <p class="modal-section-title">Rate this tool</p>
+                                <div class="review-row"><div class="rate-stars" id="rateStars">${[1, 2, 3, 4, 5].map(n => `<span data-star="${n}">★</span>`).join("")}</div><span class="review-count">${avgDisplay} avg · ${totalReviews} reviews</span></div>
+                                <textarea class="setting-input" id="writtenReviewInput" placeholder="Share your experience with ${t.name} (optional, helps other users more than a star alone)…" style="width:100%; min-height:64px; resize:vertical; font-family:inherit; margin-top:10px;"></textarea>
+                                <button class="btn-secondary" id="submitWrittenReviewBtn" data-review-tool="${t.name}" style="margin-top:8px; padding:8px 16px; font-size:12px;">💬 Post Review</button>
+                                <div id="writtenReviewsList" style="margin-top:14px; display:flex; flex-direction:column; gap:10px; max-height:220px; overflow-y:auto;">
+                                    ${(state.writtenReviews[t.name] || []).length === 0
+                                        ? `<p style="font-size:12px; color:var(--text-dimmer);">No written reviews yet — be the first to share your experience.</p>`
+                                        : (state.writtenReviews[t.name] || []).map(r => `
+                                            <div style="padding:10px 12px; background:var(--panel); border:1px solid var(--border); border-radius:10px;">
+                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                                    <span style="font-size:12px; font-weight:600;">${r.author}</span>
+                                                    <span style="font-size:11px; color:var(--amber);">${"★".repeat(r.stars)}<span style="color:var(--text-dimmer);">${"★".repeat(5 - r.stars)}</span></span>
+                                                </div>
+                                                <p style="font-size:13px; color:var(--text-dim); line-height:1.5;">${r.text || "<em>No comment left.</em>"}</p>
+                                                <p style="font-size:10px; color:var(--text-dimmer); margin-top:4px;">${new Date(r.date).toLocaleDateString()}</p>
+                                            </div>
+                                        `).join("")}
+                                </div>
+                            </div>
+                            <div class="modal-actions"><button class="btn-primary" style="flex:1;justify-content:center;" data-visit="${t.name}">Visit Website ↗</button><button class="btn-secondary" data-copy-link="${t.name}" style="padding:11px 16px;" aria-label="Copy link">🔗</button><button class="btn-secondary" data-bookmark="${t.name}" style="padding:11px 16px;">${state.bookmarked.has(t.name) ? "★" : "☆"}</button><button class="btn-secondary" data-report-stale="${t.name}" style="padding:11px 16px;" aria-label="Report outdated info" title="Report outdated info">🚩</button></div>
                         </div>
                     `;
         }
@@ -6729,7 +6801,7 @@
         // DOMContentLoaded - MAIN INIT
         // =========================================
         document.addEventListener("DOMContentLoaded", function() {
-                        setupSidebar();
+            setupSidebar();
             setTimeout(setupInstallButton, 100);
 
             // ===== ADDON: back-to-top button =====
@@ -6806,6 +6878,7 @@
                 const el = document.getElementById(id);
                 if (el) animateCountUp(el, el.textContent || '0');
             });
+
             // Check session on load
             checkSession();
 
@@ -6828,6 +6901,7 @@
             renderFilterChips();
             renderTrending();
             renderCategoryQuickChips();
+            renderTaskQuickChips();
             updateTrustStats();
             renderSkeletons(8);
             setTimeout(() => renderToolsGrid(), 1200);
@@ -6993,7 +7067,10 @@
                 const t = TOOLS.find(x => x.name === name);
                 if (!t || !toolBackdrop) return;
                 state.selectedTool = t;
+                state.recentlyViewed = [name, ...state.recentlyViewed.filter(n => n !== name)].slice(0, 10);
+                persistState();
                 renderToolModal();
+                renderRecentlyViewed();
                 toolBackdrop.classList.add("show");
             }
 
@@ -7001,7 +7078,8 @@
                 if (toolBackdrop) toolBackdrop.classList.remove("show");
                 state.selectedTool = null;
             }
-                        if (toolBackdrop) {
+
+            if (toolBackdrop) {
                 toolBackdrop.addEventListener("click", function(e) { if (e.target === toolBackdrop) closeToolModal(); });
             }
 
@@ -7101,7 +7179,7 @@
                     if (state.selectedTool && state.selectedTool.name === name) renderToolModal();
                 }
 
-                                const visitBtn = e.target.closest("[data-visit]");
+                const visitBtn = e.target.closest("[data-visit]");
                 if (visitBtn) {
                     e.stopPropagation();
                     const t = TOOLS.find(x => x.name === visitBtn.dataset.visit);
@@ -7126,7 +7204,18 @@
                     return;
                 }
 
-                               const toolOpenTarget = e.target.closest("[data-tool]");
+                // ===== PATCH 4: Report stale info =====
+                const reportStaleBtn = e.target.closest("[data-report-stale]");
+                if (reportStaleBtn) {
+                    e.stopPropagation();
+                    const name = reportStaleBtn.dataset.reportStale;
+                    const subject = encodeURIComponent(`AIverse: Outdated info reported — ${name}`);
+                    const body = encodeURIComponent(`A user flagged "${name}" as having outdated pricing, description, or links. Please review and update.`);
+                    window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
+                    showToast(`Thanks — flagged "${name}" for review`, "success");
+                }
+
+                const toolOpenTarget = e.target.closest("[data-tool]");
                 if (toolOpenTarget && !e.target.closest("[data-bookmark]") && !e.target.closest("[data-visit]")) {
                     openToolModal(toolOpenTarget.dataset.tool);
                     if (e.target.closest(".suggestion-item") && suggestions) {
@@ -7146,6 +7235,22 @@
                     state.reviews[name].count += 1;
                     persistState();
                     renderToolModal();
+                }
+
+                // ===== PATCH 1c: Submit written review =====
+                const submitReviewBtn = e.target.closest("#submitWrittenReviewBtn");
+                if (submitReviewBtn && state.selectedTool) {
+                    const filled = document.querySelectorAll("#rateStars span.filled").length;
+                    const chosenStars = filled || Math.round(state.selectedTool.rating);
+                    const textEl = document.getElementById("writtenReviewInput");
+                    const text = textEl ? textEl.value.trim() : "";
+                    if (!text) {
+                        showToast("Add a few words so other users know what to expect", "info");
+                    } else {
+                        addWrittenReview(state.selectedTool.name, chosenStars, text);
+                        showToast("Review posted — thanks for helping the community!", "success");
+                        renderToolModal();
+                    }
                 }
 
                 const profileDashboard = e.target.closest("#profileDashboardBtn");
@@ -7176,7 +7281,20 @@
                     if (toolsSection) toolsSection.scrollIntoView({ behavior: "smooth", block: "start" });
                 }
 
-                                const submitBtn = e.target.closest("#submitToolBtn");
+                // ===== PATCH 5: Task quick chip handler =====
+                const taskChip = e.target.closest("[data-quick-task]");
+                if (taskChip) {
+                    state.search = taskChip.dataset.quickTask;
+                    const searchInput = document.getElementById("searchInput");
+                    if (searchInput) searchInput.value = state.search;
+                    state.activeCategory = "All";
+                    renderCategories();
+                    renderFilterChips();
+                    renderToolsGrid();
+                    document.getElementById("sec-AITools")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+
+                const submitBtn = e.target.closest("#submitToolBtn");
                 if (submitBtn) { openSubmitToolModal(); }
 
                 const closeSubmitModalBtn = e.target.closest("#closeSubmitToolModalBtn, #stCloseSuccessBtn");
@@ -7191,7 +7309,7 @@
                 const closeReviewBtn = e.target.closest("#closeReviewSubmissionsModalBtn");
                 if (closeReviewBtn) { closeReviewSubmissionsModal(); }
 
-                              const submissionActionBtn = e.target.closest("[data-submission-action]");
+                const submissionActionBtn = e.target.closest("[data-submission-action]");
                 if (submissionActionBtn) {
                     const id = submissionActionBtn.dataset.submissionId;
                     const action = submissionActionBtn.dataset.submissionAction;
@@ -7478,6 +7596,9 @@
             document.getElementById('closeAuthBtn').addEventListener('click', function() {
                 hideAuthOverlay();
             });
+
+            // ===== PATCH 3d: Call renderRecentlyViewed on load =====
+            renderRecentlyViewed();
 
             console.log("✅ AIverse initialized successfully!");
             console.log(`📊 Loaded ${TOOLS.length} tools across ${CATEGORIES.length} categories`);
