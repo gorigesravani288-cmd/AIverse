@@ -323,7 +323,8 @@ const EXTRA_TOOLS = [
   { name:"Fathom", logo:"📦", desc:"AI productivity assistant for planning, notes, and daily work.", category:"Productivity", pricing:"Freemium", rating:4.5, users:"500K", free:true, platform:"Web, Mobile", tag:"Popular", website:"https://fathom.com" },
   { name:"Fireflies.ai", logo:"📧", desc:"AI email assistant for drafting, triage, and follow-ups.", category:"Email", pricing:"Freemium", rating:4.5, users:"500K", free:true, platform:"Web", tag:"Trending", website:"https://fireflies-ai.com" },
   { name:"AssemblyAI", logo:"🎤", desc:"AI voice platform for speech generation and voice workflows.", category:"Voice AI", pricing:"Freemium", rating:4.5, users:"500K", free:true, platform:"Web, API", tag:"Popular", website:"https://assemblyai.com" },
-  { name:"Tavus", logo:"🎬", desc:"AI video creation and editing workspace for creators.", category:"Video Editing", pricing:"Freemium", rating:4.5, users:"1M", free:true, platform:"Web", tag:"New", website:"https://tavus.com" }
+  { name:"Tavus", logo:"🎬", desc:"AI video creation and editing workspace for creators.", category:"Video Editing", pricing:"Freemium", rating:4.5, users:"1M", free:true, platform:"Web", tag:"New", website:"https://tavus.com" },
+  { name:"PhotoGenerAI", logo:"📸", desc:"Free AI photo generator and editor — create and edit photos in the browser, no sign-up required.", category:"Image Generation", pricing:"Freemium", rating:4.6, users:"50K", free:true, platform:"Web", tag:"New", website:"https://photogenerai.com" }
 ];
 
 const VALID_CATEGORY_NAMES = new Set([
