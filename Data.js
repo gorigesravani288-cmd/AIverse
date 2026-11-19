@@ -381,3 +381,248 @@ function collectionCount(collection){
   if(collection.pricing) return TOOLS.filter(t=>t.pricing===collection.pricing).length;
   return TOOLS.length;
 }
+/* AIverse "Goal → Stack" — drop-in feature.
+ * Load AFTER Data.js:  <script src="stack.js"></script>
+ * Optional: put <div id="stack-root"></div> where you want it inline.
+ * Without that div, a floating "Build my stack" button opens it as a dialog.
+ * API: AIverseStack.open(), AIverseStack.build(goal, {free:true}) */
+(() => {
+  'use strict';
+  if (typeof TOOLS === 'undefined') { console.warn('[AIverse Stack] load Data.js first'); return; }
+
+  // Hand-written BASE_TOOLS are better vetted than the generated EXTRA_TOOLS, so rank them higher.
+  const CURATED = new Set(typeof BASE_TOOLS !== 'undefined' ? BASE_TOOLS.map(t => t.name) : []);
+
+  const RECIPES = [
+    { label: 'Video & channel', words: ['youtube', 'video', 'channel', 'reels', 'shorts', 'tiktok', 'vlog', 'creator'], steps: [
+      { role: 'Script & ideas', cats: ['Chatbots', 'Writing'] },
+      { role: 'Thumbnails & visuals', cats: ['Image Generation'] },
+      { role: 'Edit the video', cats: ['Video Editing'] },
+      { role: 'Voice-over', cats: ['Voice AI', 'Audio'] },
+      { role: 'Get discovered', cats: ['SEO', 'Social Media'] }] },
+    { label: 'Build an app or site', words: ['website', 'app', 'saas', 'startup', 'code', 'build', 'develop', 'software', 'portfolio'], steps: [
+      { role: 'Plan & research', cats: ['Chatbots', 'Research'] },
+      { role: 'Write the code', cats: ['Coding'] },
+      { role: 'Design assets', cats: ['Image Generation'] },
+      { role: 'Automate chores', cats: ['Automation'] },
+      { role: 'Get traffic', cats: ['SEO', 'Marketing'] }] },
+    { label: 'Study & learn', words: ['study', 'exam', 'student', 'learn', 'school', 'homework', 'college', 'revise'], steps: [
+      { role: 'Understand the topic', cats: ['Education', 'Chatbots'] },
+      { role: 'Find sources', cats: ['Research'] },
+      { role: 'Organise notes', cats: ['Productivity'] },
+      { role: 'Write it up', cats: ['Writing'] }] },
+    { label: 'Write content', words: ['blog', 'article', 'newsletter', 'write', 'writing', 'book', 'essay', 'copy'], steps: [
+      { role: 'Research', cats: ['Research'] },
+      { role: 'Draft', cats: ['Writing', 'Chatbots'] },
+      { role: 'Polish', cats: ['Writing'] },
+      { role: 'Rank in search', cats: ['SEO'] },
+      { role: 'Share it', cats: ['Social Media'] }] },
+    { label: 'Grow a business', words: ['business', 'marketing', 'ads', 'brand', 'sell', 'store', 'shop', 'ecommerce', 'customers', 'sales'], steps: [
+      { role: 'Market research', cats: ['Research', 'Chatbots'] },
+      { role: 'Campaign copy', cats: ['Marketing', 'Writing'] },
+      { role: 'Creative assets', cats: ['Image Generation'] },
+      { role: 'Social presence', cats: ['Social Media'] },
+      { role: 'Follow-ups', cats: ['Email'] }] },
+    { label: 'Podcast & music', words: ['podcast', 'music', 'song', 'audio', 'beat', 'soundtrack'], steps: [
+      { role: 'Plan the episode or track', cats: ['Chatbots'] },
+      { role: 'Create or record', cats: ['Music Generation', 'Voice AI'] },
+      { role: 'Clean up the sound', cats: ['Audio'] },
+      { role: 'Promote it', cats: ['Social Media'] }] },
+    { label: 'Analyse data', words: ['data', 'analysis', 'analyze', 'analyse', 'dashboard', 'spreadsheet', 'excel', 'report', 'insights'], steps: [
+      { role: 'Explore the data', cats: ['Data Analytics'] },
+      { role: 'Ask questions', cats: ['Chatbots'] },
+      { role: 'Present findings', cats: ['Business'] },
+      { role: 'Automate the report', cats: ['Automation'] }] },
+    { label: 'Job search', words: ['job', 'resume', 'cv', 'interview', 'career', 'hired'], steps: [
+      { role: 'Research the company', cats: ['Research'] },
+      { role: 'Write & polish', cats: ['Writing', 'Chatbots'] },
+      { role: 'Reach out', cats: ['Email'] },
+      { role: 'Stay organised', cats: ['Productivity'] }] }
+  ];
+
+  const EXAMPLES = ['Start a YouTube channel', 'Study for my exams', 'Launch a small online store', 'Build a portfolio website'];
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
+  const users = s => { const m = /^([\d.]+)\s*([KM]?)/i.exec(s || ''); return m ? parseFloat(m[1]) * ({ K: 1e3, M: 1e6 }[m[2].toUpperCase()] || 1) : 1; };
+  const tokens = s => (s.toLowerCase().match(/[a-z0-9+#.]{4,}/g) || []);
+  const hits = (text, words) => words.filter(w => text.toLowerCase().includes(w)).length;
+
+  function rank(cats, words, free, used) {
+    return TOOLS
+      .filter(t => cats.includes(t.category) && (!free || t.free) && !used.has(t.name))
+      .map(t => ({ t, s: t.rating * 10 + (CURATED.has(t.name) ? 8 : 0) + Math.log10(users(t.users) || 1) * 2 + hits(t.name + ' ' + t.desc, words) * 3 }))
+      .sort((a, b) => b.s - a.s)
+      .map(x => x.t);
+  }
+
+  function pickRecipe(goal) {
+    const g = goal.toLowerCase();
+    let best = null, top = 0;
+    RECIPES.forEach(r => {
+      const n = r.words.filter(w => new RegExp('\\b' + w).test(g)).length;
+      if (n > top) { top = n; best = r; }
+    });
+    return best;
+  }
+
+  function build(goal, opts = {}) {
+    const free = !!opts.free, words = tokens(goal), used = new Set();
+    let steps = [];
+    const recipe = pickRecipe(goal);
+    if (recipe) {
+      recipe.steps.forEach(st => {
+        const r = rank(st.cats, words, free, used);
+        if (r.length) { used.add(r[0].name); steps.push({ role: st.role, tool: r[0], alt: r[1] || null }); }
+      });
+    } else if (words.length) {
+      // No recipe matched: score every tool against the goal's words and group by category.
+      const scored = TOOLS.filter(t => !free || t.free)
+        .map(t => ({ t, h: hits(t.name + ' ' + t.desc + ' ' + t.category, words) }))
+        .filter(x => x.h > 0).sort((a, b) => b.h - a.h || b.t.rating - a.t.rating);
+      const cats = [];
+      scored.forEach(x => { if (!cats.includes(x.t.category) && cats.length < 4) cats.push(x.t.category); });
+      cats.forEach(c => {
+        const r = rank([c], words, free, used);
+        if (r.length) { used.add(r[0].name); steps.push({ role: c, tool: r[0], alt: r[1] || null }); }
+      });
+    }
+    return { goal, label: recipe ? recipe.label : null, steps };
+  }
+
+  function summary(res) {
+    const n = res.steps.length, f = res.steps.filter(s => s.tool.free).length;
+    if (f === n) return `${n} tools, and every one has a free plan.`;
+    const paid = res.steps.filter(s => !s.tool.free).map(s => s.tool.name).join(', ');
+    return `${n} tools. ${f} have a free plan; ${paid} ${n - f === 1 ? 'is' : 'are'} paid.`;
+  }
+
+  function asText(res) {
+    return `My AI stack for "${res.goal}"\n` + res.steps.map((s, i) => `${i + 1}. ${s.role}: ${s.tool.name} (${s.tool.website})`).join('\n') + '\nBuilt with AIverse';
+  }
+
+  function wrap(ctx, text, max) {
+    const out = []; let line = '';
+    text.split(/\s+/).forEach(w => {
+      const t = line ? line + ' ' + w : w;
+      if (ctx.measureText(t).width > max && line) { out.push(line); line = w; } else line = t;
+    });
+    if (line) out.push(line);
+    return out;
+  }
+
+  function downloadCard(res) {
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+    const x = c.getContext('2d'), F = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+    x.fillStyle = '#0f1020'; x.fillRect(0, 0, 1080, 1350);
+    x.fillStyle = '#818cf8'; x.font = `600 34px ${F}`; x.fillText('My AI stack', 80, 120);
+    x.fillStyle = '#ffffff'; x.font = `700 60px ${F}`;
+    let y = 210;
+    wrap(x, res.goal, 920).slice(0, 3).forEach(l => { x.fillText(l, 80, y); y += 74; });
+    y += 40;
+    res.steps.forEach(s => {
+      x.fillStyle = '#8b8fb0'; x.font = `500 28px ${F}`; x.fillText(s.role, 80, y); y += 48;
+      x.fillStyle = '#ffffff'; x.font = `600 44px ${F}`; x.fillText(`${s.tool.logo} ${s.tool.name}`, 80, y); y += 84;
+    });
+    x.fillStyle = '#6366f1'; x.font = `600 30px ${F}`; x.fillText('aiverse-lyart.vercel.app', 80, 1270);
+    const a = document.createElement('a');
+    a.download = 'my-ai-stack.png'; a.href = c.toDataURL('image/png'); a.click();
+  }
+
+  const CSS = `
+.avs{--a:#818cf8;--ink:#eef0ff;--mut:#9a9dc2;--line:rgba(255,255,255,.12);color:var(--ink);font:inherit;max-width:680px;margin:0 auto;padding:4px}
+.avs h2{margin:0 0 4px;font-size:1.5rem;line-height:1.2}
+.avs p.avs-sub{margin:0 0 16px;color:var(--mut)}
+.avs-f{display:flex;gap:8px;flex-wrap:wrap}
+.avs-f input[type=text]{flex:1 1 240px;min-width:0;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);font:inherit}
+.avs button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);padding:10px 14px}
+.avs button.avs-go{background:#4f46e5;border-color:#4f46e5;font-weight:600}
+.avs button:hover{border-color:var(--a)}
+.avs :focus-visible,.avs-fab:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.avs-opt{display:flex;gap:8px;align-items:center;margin:12px 0;color:var(--mut);font-size:.92rem}
+.avs-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.avs-chips button{font-size:.88rem;padding:6px 12px;border-radius:99px}
+.avs-sum{margin:20px 0 12px;font-weight:600}
+.avs-steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.avs-steps li{counter-increment:s;position:relative;padding:0 0 22px 46px}
+.avs-steps li::before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;background:#4f46e5;display:grid;place-items:center;font-weight:700;font-size:.9rem}
+.avs-steps li::after{content:"";position:absolute;left:14px;top:34px;bottom:4px;width:2px;background:var(--line)}
+.avs-steps li:last-child{padding-bottom:4px}.avs-steps li:last-child::after{display:none}
+.avs-role{color:var(--mut);font-size:.85rem}
+.avs-tool{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:2px 0}
+.avs-tool a{color:var(--ink);font-weight:700;font-size:1.1rem;text-decoration:none;border-bottom:1px solid var(--a)}
+.avs-badge{font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.avs-desc{margin:2px 0;color:var(--mut);font-size:.93rem}
+.avs-alt{font-size:.85rem;color:var(--mut)}.avs-alt a{color:var(--a)}
+.avs-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.avs-empty{margin:20px 0 0;color:var(--mut)}
+.avs-fab{position:fixed;left:16px;bottom:88px;z-index:900;padding:12px 16px;border-radius:99px;border:0;background:#4f46e5;color:#fff;font:600 .95rem system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 24px rgba(79,70,229,.45)}
+dialog.avs-dlg{width:min(720px,94vw);max-height:90vh;overflow:auto;background:#12132a;border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:22px;color:#eef0ff}
+dialog.avs-dlg::backdrop{background:rgba(5,5,20,.7)}
+.avs-x{float:right}`;
+
+  function mount(el) {
+    el.innerHTML = `<div class="avs">
+      <h2>What do you want to get done?</h2>
+      <p class="avs-sub">Describe a goal in plain words. You get a step-by-step stack of tools from the AIverse directory.</p>
+      <form class="avs-f"><input type="text" maxlength="140" aria-label="Your goal" placeholder="e.g. Start a YouTube channel"><button class="avs-go" type="submit">Build my stack</button></form>
+      <label class="avs-opt"><input type="checkbox" class="avs-free"> Only tools with a free plan</label>
+      <div class="avs-chips">${EXAMPLES.map(e => `<button type="button">${esc(e)}</button>`).join('')}</div>
+      <div class="avs-out" aria-live="polite"></div></div>`;
+    const form = el.querySelector('form'), input = el.querySelector('input[type=text]'),
+      free = el.querySelector('.avs-free'), out = el.querySelector('.avs-out');
+    let last = null;
+
+    function run() {
+      const goal = input.value.trim();
+      if (!goal) { out.innerHTML = '<p class="avs-empty">Type a goal above, or tap one of the examples.</p>'; return; }
+      const res = last = build(goal, { free: free.checked });
+      if (!res.steps.length) {
+        out.innerHTML = '<p class="avs-empty">No match yet. Try naming the outcome, like “make a podcast” or “analyse sales data”.</p>';
+        return;
+      }
+      out.innerHTML = `<p class="avs-sum">${esc(summary(res))}</p><ol class="avs-steps">` + res.steps.map(s => `
+        <li><div class="avs-role">${esc(s.role)}</div>
+          <div class="avs-tool"><span aria-hidden="true">${esc(s.tool.logo)}</span><a href="${esc(safeUrl(s.tool.website))}" target="_blank" rel="noopener noreferrer">${esc(s.tool.name)}</a><span class="avs-badge">${esc(s.tool.pricing)}</span></div>
+          <p class="avs-desc">${esc(s.tool.desc)}</p>
+          ${s.alt ? `<div class="avs-alt">Alternative: <a href="${esc(safeUrl(s.alt.website))}" target="_blank" rel="noopener noreferrer">${esc(s.alt.name)}</a></div>` : ''}</li>`).join('') + `</ol>
+        <div class="avs-act"><button type="button" data-a="copy">Copy as text</button><button type="button" data-a="png">Download share card</button></div>`;
+    }
+    form.addEventListener('submit', e => { e.preventDefault(); run(); });
+    free.addEventListener('change', () => input.value.trim() && run());
+    el.querySelectorAll('.avs-chips button').forEach(b => b.addEventListener('click', () => { input.value = b.textContent; run(); }));
+    out.addEventListener('click', e => {
+      const a = e.target.dataset && e.target.dataset.a;
+      if (!a || !last) return;
+      if (a === 'png') downloadCard(last);
+      if (a === 'copy') navigator.clipboard.writeText(asText(last)).then(() => { e.target.textContent = 'Copied'; }, () => { e.target.textContent = 'Copy failed'; });
+    });
+  }
+
+  let dlg = null;
+  function open() {
+    if (!dlg) {
+      dlg = document.createElement('dialog'); dlg.className = 'avs-dlg';
+      dlg.innerHTML = '<button class="avs-x avs-btn" type="button" aria-label="Close" style="background:none;border:0;color:inherit;font-size:1.4rem;cursor:pointer">×</button><div class="avs-host"></div>';
+      dlg.querySelector('.avs-x').addEventListener('click', () => dlg.close());
+      dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+      document.body.appendChild(dlg);
+      mount(dlg.querySelector('.avs-host'));
+    }
+    dlg.showModal();
+    dlg.querySelector('input[type=text]').focus();
+  }
+
+  function init() {
+    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    const root = document.getElementById('stack-root');
+    if (root) { mount(root); return; }
+    const fab = document.createElement('button');
+    fab.className = 'avs-fab'; fab.type = 'button'; fab.textContent = '✨ Build my stack';
+    fab.addEventListener('click', open);
+    document.body.appendChild(fab);
+  }
+
+  window.AIverseStack = { open, mount, build };
+  document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+})();
